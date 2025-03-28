@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCTV Frame Capture</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        label, input, button {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 8px;
+            font-size: 14px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        table, th, td {
+            border: 1px solid #ccc;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        #statusMessage {
+            margin-top: 20px;
+            font-weight: bold;
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CCTV Frame Capture</h1>
+        <form id="captureForm">
+            <table id="coursesTable">
+                <thead>
+                    <tr>
+                        <th>Course</th>
+                        <th>Camera ID</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Dynamic rows will be populated here -->
+                </tbody>
+            </table>
+
+            <br><br>
+
+            
+
+            <button type="button" id="sendFramesButton">Send Frames</button>
+        </form>
+        <div id="statusMessage"></div>
+    </div>
+
+    <script>
+        // Fetch courses and populate the table
+        function fetchCourses() {
+    fetch('/get_courses') // Flask endpoint
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                console.log("TEST",data);
+                
+                const tableBody = document.getElementById('coursesTable').getElementsByTagName('tbody')[0];
+                data.courses.data.forEach(course => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${course.course_name}</td>
+                        <td><input type="text" class="camera_id_input" placeholder="Enter Camera ID"></td>
+                        <td>
+                            <button class="startCaptureButton">Start Capture</button>
+                            <button class="stopCaptureButton">Stop Capture</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                    
+                    // Add event listeners for buttons
+                    row.querySelector('.startCaptureButton').addEventListener('click', function() {
+                        event.preventDefault();
+                        const cameraId = row.querySelector('.camera_id_input').value;
+                        startCapture(course._id, cameraId);
+                    });
+                    row.querySelector('.stopCaptureButton').addEventListener('click', function() {
+                        event.preventDefault();
+                        const cameraId = row.querySelector('.camera_id_input').value;
+                        stopCapture(cameraId);
+                    });
+                });
+            } else {
+                console.error('Failed to fetch courses:', data.message);
+            }
+        })
+        .catch(error => console.error('Error fetching courses:', error));
+        }
+
+
+        // Start capture for the selected course and camera
+        function startCapture(courseId, cameraId) {
+            fetch('/start_capture', {
+                method: 'POST',
+                body: new URLSearchParams({
+                    'course_id': courseId,
+                    'camera_id': cameraId
+                }),
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('statusMessage').innerText = data.message;
+                document.getElementById('statusMessage').style.color = data.status === 'success' ? 'green' : 'red';
+            });
+        }
+
+        // Stop capture for the selected camera
+        function stopCapture(cameraId) {
+            fetch('/stop_capture', {
+                method: 'POST',
+                body: new URLSearchParams({
+                    'camera_id': cameraId
+                }),
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('statusMessage').innerText = data.message;
+                document.getElementById('statusMessage').style.color = data.status === 'success' ? 'green' : 'red';
+            });
+        }
+
+        // Send frames to the backend
+        document.getElementById('sendFramesButton').onclick = function() {
+            const instituteId = document.getElementById('institute_id').value;
+
+            fetch('/send_frames', {
+                method: 'POST',
+                body: new URLSearchParams({
+                    'institute_id': instituteId
+                }),
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const message = data.results?.[0]?.result?.message || 'Error: Something went wrong';
+                document.getElementById('statusMessage').innerText = message;
+                document.getElementById('statusMessage').style.color = data.status === 'success' ? 'green' : 'red';
+            })
+            .catch(error => {
+                document.getElementById('statusMessage').innerText = "An error occurred: " + error.message;
+                document.getElementById('statusMessage').style.color = 'red';
+            });
+        };
+
+        // Initialize the table on page load
+        window.onload = fetchCourses;
+    </script>
+</body>
+</html>
